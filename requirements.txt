@@ -1,0 +1,10 @@
+SpyWare
+pyautogui
+opencv-python
+pillow
+pyperclip
+pynput
+pyaudio
+pyTelegramBotAPI
+python-dotenv
+requests
